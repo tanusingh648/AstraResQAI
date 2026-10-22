@@ -1,7 +1,7 @@
 
 import json
+from copy import deepcopy
 from pathlib import Path
-import tempfile
 
 import pandas as pd
 import plotly.express as px
@@ -16,7 +16,6 @@ from backend.route_planner import (
     find_alternative_route,
     capture_camera_frame,
 )
-from backend.video_detection import analyze_video
 
 
 # =========================================================
@@ -391,11 +390,48 @@ def load_scenario():
 
 
 try:
-    scenario = load_scenario()
+    base_scenario = load_scenario()
 except (OSError, json.JSONDecodeError) as error:
     st.error(f"Could not load the scenario file: {error}")
     st.stop()
 
+
+def build_demo_scenarios(base):
+    """Build fictional demo presets from the project's existing scenario data."""
+    presets = {}
+
+    flood = deepcopy(base)
+    flood["name"] = "Riverdale Flood Response"
+    flood["description"] = (
+        "Fictional flood-response exercise using the bundled scenario data."
+    )
+    presets["Riverdale Flood Response"] = flood
+
+    coastal = deepcopy(base)
+    coastal["name"] = "Coastal Storm Drill"
+    coastal["description"] = (
+        "Fictional coastal-storm exercise using simulated incidents and resources."
+    )
+    for task in coastal.get("tasks", []):
+        task["name"] = f"Coastal storm drill — {task.get('name', task.get('id', 'Incident'))}"
+    presets["Coastal Storm Drill"] = coastal
+
+    urban = deepcopy(base)
+    urban["name"] = "Urban Road Blockage Drill"
+    urban["description"] = (
+        "Fictional urban road-disruption exercise; priorities are demo settings."
+    )
+    demo_priorities = {"T1": "high", "T2": "critical", "T3": "high",
+                       "T4": "medium", "T5": "critical", "T6": "medium"}
+    for task in urban.get("tasks", []):
+        task["name"] = f"Urban blockage drill — {task.get('name', task.get('id', 'Incident'))}"
+        if task.get("id") in demo_priorities:
+            task["priority"] = demo_priorities[task["id"]]
+    presets["Urban Road Blockage Drill"] = urban
+    return presets
+
+
+scenario_presets = build_demo_scenarios(base_scenario)
 
 # =========================================================
 # SIDEBAR
@@ -449,6 +485,21 @@ with st.sidebar:
         '<div class="section-label">SIMULATION CONTROL</div>',
         unsafe_allow_html=True,
     )
+
+    selected_scenario_name = st.selectbox(
+        "Choose disaster scenario",
+        options=list(scenario_presets.keys()),
+        key="selected_scenario_name",
+        help="Choose a fictional scenario for the educational demonstration.",
+    )
+    scenario = deepcopy(scenario_presets[selected_scenario_name])
+    st.caption(scenario.get("description", "Fictional educational simulation."))
+
+    # A scenario change invalidates results calculated for the previous scenario.
+    previous_scenario_name = st.session_state.get("active_scenario_name")
+    if previous_scenario_name != selected_scenario_name:
+        st.session_state.simulation_result = None
+        st.session_state.active_scenario_name = selected_scenario_name
 
     route_ids = sorted({
         task["route_id"]
@@ -607,6 +658,8 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+st.info(f"**Active demo scenario:** {selected_scenario_name}")
 
 if simulation_result:
     disruption = simulation_result.get("disruption", {})
@@ -1021,146 +1074,36 @@ elif active_page == "Map & Routes":
     )
 
     st.divider()
-    st.subheader("◈ Continuous Video Hazard Detection — Local AI")
+    st.subheader("◈ Authorized Camera Preview")
     st.caption(
-        "Upload a recorded clip; the app samples frames across the whole video. "
-        "This uses a local YOLO model, not cloud image analysis. A model must be trained "
-        "with the hazard classes you want to detect."
+        "Enter a camera stream URL only if you own it or have permission to access it. "
+        "This milestone captures one preview frame when you click the button; it does not record video."
     )
-    st.warning(
-        "MODEL REQUIREMENT: the standard YOLO pretrained model does not reliably identify "
-        "floodwater or blocked roads. Use custom .pt weights trained for Flood, Fire/Smoke, "
-        "and/or Blocked road. Unsupported classes are ignored. This is a simulation, not a "
-        "verified emergency detection system."
+    camera_url = st.text_input(
+        "RTSP / RTSPS / HTTP(S) stream URL",
+        type="password",
+        placeholder="rtsp://camera-address/stream",
+        help="Do not paste a camera URL you are not authorized to access. The URL is not saved to a project file.",
+        key="authorized_camera_url",
     )
-
-    video_file = st.file_uploader(
-        "Choose a recorded video", type=["mp4", "avi", "mov", "mkv"],
-        key="hazard_video_upload",
-    )
-    model_file = st.file_uploader(
-        "Choose your locally trained YOLO weights (.pt)", type=["pt"],
-        key="hazard_model_upload",
-        help="Weights must include the hazard classes to detect. Do not use a generic COCO model and assume it detects floods or blocked roads.",
-    )
-    detect_left, detect_right = st.columns(2)
-    with detect_left:
-        frame_stride = st.number_input(
-            "Process every Nth frame", min_value=1, max_value=60, value=5, step=1,
-            help="Higher values run faster but may miss brief events.",
-        )
-    with detect_right:
-        min_confirm_frames = st.number_input(
-            "Frames required to confirm a hazard", min_value=1, max_value=20, value=3, step=1,
-            help="The hazard must appear in this many sampled frames before it is marked as a candidate.",
-        )
-    confidence_threshold = st.slider(
-        "Detection confidence threshold", min_value=0.10, max_value=0.95,
-        value=0.40, step=0.05,
-    )
-
-    if st.button("▶ Run continuous video detection", key="run_video_detection_button", type="primary"):
-        if video_file is None:
-            st.warning("Choose a recorded video first.")
-        elif model_file is None:
-            st.warning("Choose trained YOLO .pt weights. Detection is not enabled without a suitable model.")
+    if st.button("📷 Capture camera preview frame", key="capture_camera_frame_button"):
+        if not camera_url.strip():
+            st.warning("Enter an authorized camera stream URL first.")
         else:
             try:
-                from ultralytics import YOLO
-                with tempfile.TemporaryDirectory(prefix="astraresq_") as temp_dir:
-                    video_path = Path(temp_dir) / video_file.name
-                    weights_path = Path(temp_dir) / model_file.name
-                    video_path.write_bytes(video_file.getvalue())
-                    weights_path.write_bytes(model_file.getvalue())
-                    model = YOLO(str(weights_path))
-
-                    def local_detector(frame_bgr):
-                        result = model.predict(frame_bgr, verbose=False)[0]
-                        found = []
-                        if result.boxes is None:
-                            return found
-                        names = result.names
-                        for box in result.boxes:
-                            class_id = int(box.cls[0].item())
-                            confidence = float(box.conf[0].item())
-                            xyxy = [float(value) for value in box.xyxy[0].tolist()]
-                            found.append({
-                                "label": names.get(class_id, str(class_id)) if isinstance(names, dict) else names[class_id],
-                                "confidence": confidence,
-                                "xyxy": xyxy,
-                            })
-                        return found
-
-                    with st.spinner("Processing sampled frames locally on this machine..."):
-                        video_result = analyze_video(
-                            video_path,
-                            local_detector,
-                            frame_stride=int(frame_stride),
-                            min_confirm_frames=int(min_confirm_frames),
-                            confidence_threshold=float(confidence_threshold),
-                        )
-                st.session_state.video_detection_result = {
-                    key: value for key, value in video_result.items()
-                    if key != "last_annotated_frame_rgb"
-                }
-                st.session_state.video_detection_frame = video_result["last_annotated_frame_rgb"]
-                st.session_state.video_detection_camera_road = None
-                st.success(
-                    f"Video processed: {video_result['frames_read']} frames read; "
-                    f"{video_result['frames_sampled']} frames sampled."
-                )
-            except ImportError:
-                st.error("Ultralytics is not installed. Activate your project environment and run: python -m pip install ultralytics")
-            except (RuntimeError, ValueError, OSError) as error:
-                st.error(f"Video detection could not finish: {error}")
-
-    video_result = st.session_state.get("video_detection_result")
-    if video_result:
-        st.markdown("#### Detection summary")
-        st.metric("Frames sampled", video_result.get("frames_sampled", 0))
-        confirmed = video_result.get("confirmed_hazards", [])
-        if confirmed:
-            st.success("Temporally confirmed candidate hazards: " + ", ".join(confirmed))
-        else:
-            st.info("No supported hazard class passed the temporal confirmation rule in this clip.")
-        st.json({
-            "frame_hits": video_result.get("frame_hits", {}),
-            "max_confidence": video_result.get("max_confidence", {}),
-            "min_frames_required": video_result.get("min_frames_required"),
-        })
-        if st.session_state.get("video_detection_frame") is not None:
-            st.image(st.session_state.video_detection_frame, caption="Last sampled frame (boxes shown where the model returned supported hazard classes)", width="stretch")
-
-        if confirmed:
-            st.markdown("#### Link this camera event to a schematic road")
-            st.caption("Video detection cannot determine the road's map coordinates by itself. Select the road associated with this camera, then manually confirm whether it should be treated as closed in the simulation.")
-            detected_road_id = st.selectbox(
-                "Road associated with this camera", options=list(road_lookup),
-                format_func=lambda value: f"{value} — {road_lookup[value].get('name', value)}",
-                key="detected_camera_road_select",
-            )
-            confirm_closure = st.checkbox(
-                "I reviewed the clip and confirm this road should be marked blocked in the simulation.",
-                key="confirm_detected_road_closure",
-            )
-            if st.button("Apply confirmed closure to route map", key="apply_detected_road_closure"):
-                if not confirm_closure:
-                    st.warning("Tick the confirmation checkbox after reviewing the clip.")
-                else:
-                    current_blocked = list(st.session_state.get("map_blocked_roads", []))
-                    if detected_road_id not in current_blocked:
-                        current_blocked.append(detected_road_id)
-                    st.session_state.map_blocked_roads = current_blocked
-                    # Update the widget state before it is created on the next rerun.
-                    st.session_state.map_blocked_roads_widget = current_blocked
-                    st.success(f"{detected_road_id} added to the map's blocked-road simulation. Return to Map & Routes to review alternatives.")
-                    st.rerun()
-
+                with st.spinner("Connecting to the authorized camera and capturing one frame..."):
+                    frame = capture_camera_frame(camera_url)
+                st.session_state.camera_preview_frame = frame
+                st.success("Frame captured. No video was recorded or saved by this feature.")
+            except (ValueError, RuntimeError) as error:
+                st.error(str(error))
+    if st.session_state.get("camera_preview_frame") is not None:
+        st.image(st.session_state.camera_preview_frame, caption="Latest captured preview frame", width="stretch")
     st.info(
-        "The detector processes a recorded video clip continuously from start to finish, sampling frames. "
-        "It is not a live CCTV connection yet. Hazard results are candidates; road closures and route changes "
-        "require human confirmation. The map remains a fictional schematic, not geographic navigation."
+        "Camera detections are not implemented yet. The preview only displays a frame; it does not "
+        "automatically detect fire, floodwater, damaged roads, people, or route safety."
     )
+
 
 elif active_page == "AI Agents":
 
