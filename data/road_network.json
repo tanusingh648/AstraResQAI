@@ -1,0 +1,154 @@
+{
+  "name": "Riverdale illustrative road network",
+  "units": "schematic units (not kilometres)",
+  "nodes": [
+    {
+      "id": "HQ",
+      "name": "Command Center",
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": "J1",
+      "name": "West Junction",
+      "x": 2,
+      "y": 0
+    },
+    {
+      "id": "J2",
+      "name": "Central Junction",
+      "x": 4,
+      "y": 0
+    },
+    {
+      "id": "NORTH",
+      "name": "North Zone",
+      "x": 6,
+      "y": 2
+    },
+    {
+      "id": "RIVERSIDE",
+      "name": "Riverside Zone",
+      "x": 6,
+      "y": -2
+    },
+    {
+      "id": "EAST",
+      "name": "East Zone",
+      "x": 6,
+      "y": 0
+    },
+    {
+      "id": "CENTRAL",
+      "name": "Central Zone",
+      "x": 4,
+      "y": 2
+    },
+    {
+      "id": "SOUTH",
+      "name": "South Zone",
+      "x": 4,
+      "y": -2
+    },
+    {
+      "id": "WEST",
+      "name": "West Zone",
+      "x": 2,
+      "y": -2
+    }
+  ],
+  "roads": [
+    {
+      "id": "R1",
+      "name": "Command Center\u2013West Junction",
+      "from": "HQ",
+      "to": "J1"
+    },
+    {
+      "id": "R2",
+      "name": "West\u2013Central Connector",
+      "from": "J1",
+      "to": "J2"
+    },
+    {
+      "id": "R3",
+      "name": "Central\u2013East Road",
+      "from": "J2",
+      "to": "EAST"
+    },
+    {
+      "id": "R4",
+      "name": "Central Zone Link",
+      "from": "J2",
+      "to": "CENTRAL"
+    },
+    {
+      "id": "R5",
+      "name": "South Zone Link",
+      "from": "J1",
+      "to": "SOUTH"
+    },
+    {
+      "id": "R6",
+      "name": "West Zone Link",
+      "from": "J1",
+      "to": "WEST"
+    },
+    {
+      "id": "R7",
+      "name": "North Zone Link",
+      "from": "J2",
+      "to": "NORTH"
+    },
+    {
+      "id": "R8",
+      "name": "Riverside Link",
+      "from": "J2",
+      "to": "RIVERSIDE"
+    },
+    {
+      "id": "R9",
+      "name": "Outer West Road",
+      "from": "HQ",
+      "to": "WEST"
+    },
+    {
+      "id": "R10",
+      "name": "West\u2013South Connector",
+      "from": "WEST",
+      "to": "SOUTH"
+    },
+    {
+      "id": "R11",
+      "name": "South\u2013Central Connector",
+      "from": "SOUTH",
+      "to": "CENTRAL"
+    },
+    {
+      "id": "R12",
+      "name": "Central\u2013North Connector",
+      "from": "CENTRAL",
+      "to": "NORTH"
+    },
+    {
+      "id": "R13",
+      "name": "West\u2013East Connector",
+      "from": "WEST",
+      "to": "EAST"
+    },
+    {
+      "id": "R14",
+      "name": "South\u2013Riverside Connector",
+      "from": "SOUTH",
+      "to": "RIVERSIDE"
+    }
+  ],
+  "destinations": {
+    "T1": "NORTH",
+    "T2": "RIVERSIDE",
+    "T3": "EAST",
+    "T4": "CENTRAL",
+    "T5": "SOUTH",
+    "T6": "WEST"
+  }
+}

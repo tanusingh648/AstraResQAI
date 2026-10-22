@@ -1,0 +1,72 @@
+
+{
+  "name": "Riverdale Flood Response Simulation",
+  "description": "Fictional scenario for multi-agent coordination, resource contention, and disruption testing.",
+  "blocked_routes": [],
+  "vehicles": [
+    {
+      "id": "V1",
+      "name": "Rescue Vehicle 1",
+      "available": true
+    },
+    {
+      "id": "V2",
+      "name": "Medical Vehicle 1",
+      "available": true
+    },
+    {
+      "id": "V3",
+      "name": "Transport Vehicle 1",
+      "available": true
+    },
+    {
+      "id": "V4",
+      "name": "Supply Vehicle 1",
+      "available": false
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T1",
+      "name": "Rescue at North Zone",
+      "agent": "rescue",
+      "route_id": "R1",
+      "priority": "critical"
+    },
+    {
+      "id": "T2",
+      "name": "Rescue at Riverside Zone",
+      "agent": "rescue",
+      "route_id": "R2",
+      "priority": "high"
+    },
+    {
+      "id": "T3",
+      "name": "Medical Support at East Zone",
+      "agent": "medical",
+      "route_id": "R3",
+      "priority": "critical"
+    },
+    {
+      "id": "T4",
+      "name": "Medical Support at Central Zone",
+      "agent": "medical",
+      "route_id": "R4",
+      "priority": "high"
+    },
+    {
+      "id": "T5",
+      "name": "Evacuation at South Zone",
+      "agent": "transport",
+      "route_id": "R5",
+      "priority": "high"
+    },
+    {
+      "id": "T6",
+      "name": "Supply Delivery at West Zone",
+      "agent": "supply",
+      "route_id": "R6",
+      "priority": "medium"
+    }
+  ]
+}

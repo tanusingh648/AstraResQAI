@@ -1,0 +1,4 @@
+# Install inside the existing AstraResQ AI virtual environment.
+# Keep existing requirements.txt unchanged.
+opencv-python-headless>=4.8,<5
+ultralytics>=8.3,<9
